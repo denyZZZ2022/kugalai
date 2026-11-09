@@ -27,7 +27,10 @@ const BACKEND_BASE = (() => {
       return fromQuery.replace(/\/+$/, "");
     }
     const stored = localStorage.getItem("klug.backendUrl");
-    if (stored) return stored.replace(/\/+$/, "");
+    // Игнорируем устаревшие адреса туннелей — используем относительный путь.
+    if (stored && !stored.includes("trycloudflare.com")) {
+      return stored.replace(/\/+$/, "");
+    }
   } catch {
     /* no-op */
   }
