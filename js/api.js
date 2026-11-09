@@ -31,7 +31,7 @@ const BACKEND_BASE = (() => {
   } catch {
     /* no-op */
   }
-  return "http://127.0.0.1:8799";
+  return "https://klug-backend.onrender.com";
 })();
 
 const CORS_PROXIES = [
