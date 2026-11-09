@@ -18,7 +18,7 @@ import time
 
 import requests
 import yt_dlp
-from flask import Flask, Response, request, jsonify, stream_with_context
+from flask import Flask, Response, request, jsonify, stream_with_context, send_from_directory
 from ytmusicapi import YTMusic
 
 PORT = int(os.environ.get("PORT") or os.environ.get("KLUG_PORT") or "8799")
@@ -572,6 +572,27 @@ def api_stream(video_id):
     return resp
 
 
+# --- Статика фронтенда (чтобы всё работало с одного порта) ---
+FRONTEND_ROOT = os.path.realpath(os.path.join(os.path.dirname(__file__), ".."))
+
+@app.route("/")
+def index():
+    return send_from_directory(FRONTEND_ROOT, "index.html")
+
+@app.route("/<path:filename>")
+def static_files(filename):
+    # API уже обработан выше; сюда попадают только статические файлы
+    if filename.startswith("api/"):
+        return jsonify({"error": "not found"}), 404
+    full = os.path.join(FRONTEND_ROOT, filename)
+    if os.path.isfile(full):
+        return send_from_directory(FRONTEND_ROOT, filename)
+    # fallback для SPA (hash-роутинг не требует сервера, но на всякий случай)
+    if filename.endswith(".html") or "." not in filename:
+        return send_from_directory(FRONTEND_ROOT, "player.html")
+    return jsonify({"error": "not found"}), 404
+
+
 if __name__ == "__main__":
-    print(f"KLUG YouTube Music backend starting on http://{HOST}:{PORT}")
+    print(f"KLUG Sound (frontend + backend) starting on http://{HOST}:{PORT}")
     app.run(host=HOST, port=PORT, threaded=True)

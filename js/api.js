@@ -31,7 +31,11 @@ const BACKEND_BASE = (() => {
   } catch {
     /* no-op */
   }
-  return "https://hydrogen-fibre-bigger-proved.trycloudflare.com";
+  // GitHub Pages → внешний бэкенд; локально → относительный путь (один хост).
+  if (location.hostname.includes("github.io")) {
+    return "https://klug-backend.onrender.com";
+  }
+  return "";
 })();
 
 const CORS_PROXIES = [
