@@ -532,10 +532,44 @@ def api_stream(video_id):
     except Exception as exc:
         return jsonify({"error": str(exc)}), 502
 
-    # Редирект на прямой URL аудио (быстрее, без транскодирования).
-    # googlevideo обычно отдаёт CORS-заголовки для media.
-    from flask import redirect
-    return redirect(audio_url, code=302)
+    # Кэшируем аудио на диск: первый запуск транскодирует, повторные — мгновенно.
+    import os as _os
+    cache_dir = _os.path.join(_os.path.dirname(__file__), "cache", "audio")
+    _os.makedirs(cache_dir, exist_ok=True)
+    cache_file = _os.path.join(cache_dir, f"{video_id}.m4a")
+
+    if not _os.path.exists(cache_file):
+        cmd = [
+            "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
+            "-i", audio_url,
+            "-vn", "-acodec", "aac", "-b:a", "128k",
+            cache_file,
+        ]
+        try:
+            subprocess.run(cmd, check=True, timeout=300)
+        except Exception as exc:
+            # fallback: редирект на прямой URL
+            from flask import redirect
+            return redirect(audio_url, code=302)
+
+    # Ограничение кэша: удаляем старые файлы, если больше 200MB
+    try:
+        files = sorted(
+            (os.path.join(cache_dir, f) for f in os.listdir(cache_dir) if f.endswith(".m4a")),
+            key=os.path.getmtime,
+        )
+        total = sum(os.path.getsize(f) for f in files)
+        while total > 200 * 1024 * 1024 and len(files) > 5:
+            oldest = files.pop(0)
+            total -= os.path.getsize(oldest)
+            os.remove(oldest)
+    except Exception:
+        pass
+
+    from flask import send_file
+    resp = send_file(cache_file, mimetype="audio/mp4", conditional=True)
+    cors(resp)
+    return resp
 
 
 if __name__ == "__main__":

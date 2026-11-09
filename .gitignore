@@ -1,0 +1,4 @@
+backend/cache/
+backend/cookies.txt
+*.pyc
+__pycache__/
