@@ -443,16 +443,29 @@ def resolve_audio_url(video_id):
     if cached:
         return cached
     url = f"https://www.youtube.com/watch?v={video_id}"
-    opts = {"quiet": True, "no_warnings": True, "format": "bestaudio", "skip_download": True}
+    # Android-клиент обходит проверку "Sign in to confirm you're not a bot".
+    opts = {
+        "quiet": True,
+        "no_warnings": True,
+        "format": "best",
+        "skip_download": True,
+        "extractor_args": {"youtube": {"player_client": ["android"]}},
+        "http_headers": {
+            "User-Agent": "com.google.android.youtube/19.09.37 (Linux; U; Android 11) gzip",
+        },
+    }
     with yt_dlp.YoutubeDL(opts) as ydl:
         info = ydl.extract_info(url, download=False)
     audio_url = info.get("url")
     if not audio_url:
         formats = info.get("formats") or []
+        # предпочитаем форматы с аудио
         audio_formats = [f for f in formats if f.get("acodec") and f.get("acodec") != "none"]
         if audio_formats:
             audio_formats.sort(key=lambda f: (f.get("abr") or 0, f.get("filesize") or 0), reverse=True)
             audio_url = audio_formats[0].get("url")
+        elif formats:
+            audio_url = formats[-1].get("url")
     if not audio_url:
         raise RuntimeError("Аудио-поток не найден")
     cache_set(cache_key, audio_url, ttl=600)
