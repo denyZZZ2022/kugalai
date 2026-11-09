@@ -173,3 +173,4 @@ mini-app/
 ## Автор
 
 KlugAI · [@lexoffpls](https://t.me/lexoffpls)
+# kugalai
