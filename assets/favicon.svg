@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="KLUG Sound">
+  <defs>
+    <linearGradient id="g" x1="10" y1="8" x2="56" y2="58" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#d4ff57"/>
+      <stop offset="0.55" stop-color="#b6ff3f"/>
+      <stop offset="1" stop-color="#62e6bb"/>
+    </linearGradient>
+    <linearGradient id="bg" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#151821"/>
+      <stop offset="1" stop-color="#08090c"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="17" fill="url(#bg)"/>
+  <rect x="1" y="1" width="62" height="62" rx="16" fill="none" stroke="#ffffff" stroke-opacity=".08"/>
+  <g fill="url(#g)">
+    <rect x="13" y="27" width="6" height="11" rx="3"/>
+    <rect x="23" y="20" width="6" height="25" rx="3"/>
+    <rect x="33" y="24" width="6" height="17" rx="3"/>
+    <rect x="43" y="14" width="6" height="36" rx="3"/>
+  </g>
+</svg>

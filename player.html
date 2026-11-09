@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#07080b" />
+    <title>KLUG Sound — плеер</title>
+    <meta
+      name="description"
+      content="KLUG Sound — музыкальный плеер внутри Telegram: поиск треков, исполнители, очередь и любимые треки."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="KLUG Sound — плеер" />
+    <meta property="og:description" content="Слушай полные треки из Audius и превью мировых хитов из Apple Music." />
+    <meta property="og:image" content="./assets/og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="KLUG Sound" />
+    <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="preload" href="./assets/fonts/manrope-cyrillic.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="./assets/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="./assets/fonts/unbounded-cyrillic.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="./css/fonts.css" />
+    <link rel="stylesheet" href="./css/base.css" />
+    <link rel="stylesheet" href="./css/player.css" />
+    <script>
+      document.documentElement.classList.add("js");
+    </script>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  </head>
+  <body class="app">
+    <a class="skip-link" href="#view">Перейти к содержимому</a>
+
+    <div class="app-atmosphere" aria-hidden="true">
+      <span class="app-orb app-orb--lime"></span>
+      <span class="app-orb app-orb--cyan"></span>
+    </div>
+
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Навигация">
+        <a class="brand sidebar-brand" href="./index.html" aria-label="KLUG Sound — на главную">
+          <img class="brand-mark" src="./assets/favicon.svg" alt="" width="38" height="38" />
+          <span class="brand-word">klug<span>sound</span></span>
+        </a>
+
+        <nav class="side-nav">
+          <a class="side-link" href="#/home" data-nav="home">
+            <span data-icon="home"></span>
+            <span>Главная</span>
+          </a>
+          <a class="side-link" href="#/search" data-nav="search">
+            <span data-icon="search"></span>
+            <span>Поиск</span>
+          </a>
+          <a class="side-link" href="#/library" data-nav="library">
+            <span data-icon="library"></span>
+            <span>Библиотека</span>
+          </a>
+        </nav>
+
+        <div class="side-group">
+          <p class="side-label">Коллекция</p>
+          <a class="side-link side-link--sm" href="#/liked" data-nav="liked">
+            <span data-icon="heart"></span>
+            <span>Любимые</span>
+            <span class="side-count" id="likedCount">0</span>
+          </a>
+          <a class="side-link side-link--sm" href="#/recent" data-nav="recent">
+            <span data-icon="clock"></span>
+            <span>Недавно</span>
+          </a>
+          <div class="side-playlists" id="sidePlaylists"></div>
+        </div>
+
+        <div class="sidebar-spacer"></div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <div class="topbar-left">
+            <a class="brand topbar-brand" href="#/home" aria-label="KLUG Sound">
+              <img class="brand-mark" src="./assets/favicon.svg" alt="" width="32" height="32" />
+              <span class="brand-word">klug<span>sound</span></span>
+            </a>
+            <button class="icon-btn topbar-back" id="backBtn" type="button" aria-label="Назад" hidden>
+              <span data-icon="arrowLeft"></span>
+            </button>
+            <span class="topbar-context" id="topbarContext"></span>
+          </div>
+
+          <div class="topbar-right">
+            <button class="icon-btn topbar-random" id="randomBtn" type="button" aria-label="Случайный трек" title="Случайный трек">
+              <span data-icon="sparkles"></span>
+            </button>
+            <div class="user-chip" id="userChip" title="Слушатель">
+              <span class="user-avatar" id="userAvatar">G</span>
+              <span class="user-name" id="userName">Гость</span>
+            </div>
+          </div>
+        </header>
+
+        <div class="view" id="view" tabindex="-1"></div>
+      </main>
+    </div>
+
+    <div class="playerbar" id="playerbar">
+      <div class="pb-left">
+        <button class="pb-art" id="pbArtBtn" type="button" aria-label="Открыть экран «Сейчас играет»">
+          <span class="art pb-art-inner" id="pbArt"></span>
+          <span class="pb-expand-hint"><span data-icon="expand"></span></span>
+        </button>
+        <div class="pb-meta">
+          <div class="pb-title" id="pbTitle">Ничего не играет</div>
+          <div class="pb-sub" id="pbSub">Выбери трек в каталоге</div>
+        </div>
+        <button class="icon-btn pb-like" id="pbLike" type="button" aria-label="Добавить в любимые" disabled>
+          <span data-icon="heart"></span>
+        </button>
+      </div>
+
+      <div class="pb-center">
+        <div class="pb-controls">
+          <button class="pb-btn" id="shuffleBtn" type="button" aria-label="Перемешать" title="Перемешать">
+            <span data-icon="shuffle"></span>
+          </button>
+          <button class="pb-btn" id="prevBtn" type="button" aria-label="Предыдущий трек" title="Предыдущий">
+            <span data-icon="prev"></span>
+          </button>
+          <button class="pb-play" id="playBtn" type="button" aria-label="Играть" title="Играть / пауза">
+            <span data-icon="play"></span>
+          </button>
+          <button class="pb-btn" id="nextBtn" type="button" aria-label="Следующий трек" title="Следующий">
+            <span data-icon="next"></span>
+          </button>
+          <button class="pb-btn" id="repeatBtn" type="button" aria-label="Повтор" title="Повтор">
+            <span data-icon="repeat"></span>
+          </button>
+        </div>
+        <div class="pb-progress">
+          <span class="pb-time" id="curTime">0:00</span>
+          <input
+            class="range pb-range"
+            id="progress"
+            type="range"
+            min="0"
+            max="1000"
+            value="0"
+            step="1"
+            aria-label="Перемотка трека"
+          />
+          <span class="pb-time" id="durTime">0:00</span>
+        </div>
+      </div>
+
+      <div class="pb-right">
+        <button class="icon-btn" id="queueBtn" type="button" aria-label="Очередь" title="Очередь">
+          <span data-icon="queue"></span>
+        </button>
+        <div class="pb-volume">
+          <button class="icon-btn" id="muteBtn" type="button" aria-label="Выключить звук" title="Звук">
+            <span data-icon="volume"></span>
+          </button>
+          <input
+            class="range range--mini pb-volume-range"
+            id="volume"
+            type="range"
+            min="0"
+            max="100"
+            value="80"
+            step="1"
+            aria-label="Громкость"
+          />
+        </div>
+        <button class="icon-btn pb-expand" id="expandBtn" type="button" aria-label="Развернуть плеер">
+          <span data-icon="expand"></span>
+        </button>
+      </div>
+
+      <div class="pb-loading" id="pbLoading" hidden><span class="spinner"></span></div>
+    </div>
+
+    <nav class="mobile-nav" aria-label="Мобильная навигация">
+      <a class="mobile-link" href="#/home" data-nav="home">
+        <span data-icon="home"></span>
+        <span>Главная</span>
+      </a>
+      <a class="mobile-link" href="#/search" data-nav="search">
+        <span data-icon="search"></span>
+        <span>Поиск</span>
+      </a>
+      <a class="mobile-link" href="#/library" data-nav="library">
+        <span data-icon="library"></span>
+        <span>Библиотека</span>
+      </a>
+    </nav>
+
+    <div class="scrim" id="scrim" hidden></div>
+
+    <aside class="drawer" id="queueDrawer" aria-label="Очередь" aria-hidden="true">
+      <div class="drawer-head">
+        <div>
+          <span class="drawer-label">Очередь</span>
+          <h2 id="queueTitle">Далее</h2>
+        </div>
+        <button class="icon-btn" id="queueClose" type="button" aria-label="Закрыть очередь">
+          <span data-icon="x"></span>
+        </button>
+      </div>
+      <div class="drawer-body" id="queueList"></div>
+    </aside>
+
+    <section class="nowplaying" id="nowPlaying" aria-hidden="true" aria-label="Сейчас играет">
+      <div class="np-bg" id="npBg" aria-hidden="true"></div>
+      <div class="np-shade" aria-hidden="true"></div>
+
+      <div class="np-panel">
+        <button class="icon-btn np-close" id="npClose" type="button" aria-label="Закрыть плеер">
+          <span data-icon="chevronDown"></span>
+        </button>
+
+        <div class="np-left">
+          <div class="np-art-wrap">
+            <div class="np-art art" id="npArt"></div>
+            <div class="np-art-shadow" aria-hidden="true"></div>
+          </div>
+        </div>
+
+        <div class="np-right">
+          <div class="np-head">
+            <span class="np-label" id="npSource">Сейчас играет</span>
+            <button class="icon-btn np-like" id="npLike" type="button" aria-label="Добавить в любимые" disabled>
+              <span data-icon="heart"></span>
+            </button>
+          </div>
+
+          <h2 class="np-title" id="npTitle">Ничего не играет</h2>
+          <a class="np-artist" id="npArtist" href="#/search">Найди свой первый трек</a>
+
+          <div class="np-progress">
+            <input
+              class="range np-range"
+              id="npProgress"
+              type="range"
+              min="0"
+              max="1000"
+              value="0"
+              step="1"
+              aria-label="Перемотка трека"
+            />
+            <div class="np-times">
+              <span id="npCur">0:00</span>
+              <span id="npDur">0:00</span>
+            </div>
+          </div>
+
+          <div class="np-controls">
+            <button class="pb-btn" id="npShuffle" type="button" aria-label="Перемешать">
+              <span data-icon="shuffle"></span>
+            </button>
+            <button class="pb-btn" id="npPrev" type="button" aria-label="Предыдущий трек">
+              <span data-icon="prev"></span>
+            </button>
+            <button class="pb-play np-play" id="npPlay" type="button" aria-label="Играть">
+              <span data-icon="play"></span>
+            </button>
+            <button class="pb-btn" id="npNext" type="button" aria-label="Следующий трек">
+              <span data-icon="next"></span>
+            </button>
+            <button class="pb-btn" id="npRepeat" type="button" aria-label="Повтор">
+              <span data-icon="repeat"></span>
+            </button>
+          </div>
+
+          <div class="np-bottom-row">
+            <div class="np-volume">
+              <button class="icon-btn" id="npMute" type="button" aria-label="Звук">
+                <span data-icon="volume"></span>
+              </button>
+              <input
+                class="range range--mini np-volume-range"
+                id="npVolume"
+                type="range"
+                min="0"
+                max="100"
+                value="80"
+                step="1"
+                aria-label="Громкость"
+              />
+            </div>
+            <span class="np-hint">Пробел — пауза · ← → — перемотка</span>
+          </div>
+
+          <div class="np-queue">
+            <div class="np-queue-head">
+              <span>Далее в очереди</span>
+              <span id="npQueueCount">0</span>
+            </div>
+            <div class="np-queue-list" id="npQueue"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="toasts" id="toasts" aria-live="polite" aria-atomic="false"></div>
+
+    <audio id="audio" preload="metadata" playsinline></audio>
+    <script type="module" src="./js/app.js"></script>
+  </body>
+</html>

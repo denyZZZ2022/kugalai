@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="KLUG Sound">
+  <defs>
+    <linearGradient id="g" x1="100" y1="80" x2="440" y2="460" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#d4ff57"/>
+      <stop offset="0.55" stop-color="#b6ff3f"/>
+      <stop offset="1" stop-color="#62e6bb"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientTransform="translate(256 190) rotate(90) scale(320)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#b6ff3f" stop-opacity=".16"/>
+      <stop offset="1" stop-color="#b6ff3f" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" fill="#08090c"/>
+  <rect width="512" height="512" fill="url(#glow)"/>
+  <g fill="url(#g)">
+    <rect x="112" y="222" width="46" height="84" rx="23"/>
+    <rect x="188" y="164" width="46" height="200" rx="23"/>
+    <rect x="264" y="196" width="46" height="136" rx="23"/>
+    <rect x="340" y="118" width="46" height="288" rx="23"/>
+  </g>
+</svg>
