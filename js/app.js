@@ -1594,6 +1594,8 @@ function loadCurrent(autoplay = true) {
   state.playing = autoplay;
   audio.pause();
   els.pbLoading.hidden = false;
+  const loadingText = $("#pbLoadingText");
+  if (loadingText) loadingText.textContent = "0%";
   toast("Загрузка трека…", "info");
   audio.src = track.streamUrl;
   audio.load();
@@ -2295,6 +2297,15 @@ function initAudioEvents() {
 
   audio.addEventListener("timeupdate", updateProgress);
   audio.addEventListener("durationchange", updateProgress);
+  audio.addEventListener("progress", () => {
+    const loadingText = $("#pbLoadingText");
+    if (!loadingText || els.pbLoading.hidden) return;
+    const duration = getDuration();
+    if (!duration || !audio.buffered.length) return;
+    const bufferedEnd = audio.buffered.end(audio.buffered.length - 1);
+    const percent = Math.min(100, Math.round((bufferedEnd / duration) * 100));
+    loadingText.textContent = `${percent}%`;
+  });
 
   audio.addEventListener("waiting", () => {
     els.pbLoading.hidden = false;
