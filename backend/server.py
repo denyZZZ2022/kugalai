@@ -574,7 +574,7 @@ def api_stream(video_id):
             key=os.path.getmtime,
         )
         total = sum(os.path.getsize(f) for f in files)
-        while total > 200 * 1024 * 1024 and len(files) > 5:
+        while total > 5 * 1024 * 1024 * 1024 and len(files) > 10:
             oldest = files.pop(0)
             total -= os.path.getsize(oldest)
             os.remove(oldest)
