@@ -108,6 +108,7 @@ const state = {
   user: null,
   tg: null,
   lastVolume: 0.8,
+  loadingTimer: null,
 };
 
 const PALETTE = [
@@ -1595,8 +1596,23 @@ function loadCurrent(autoplay = true) {
   audio.pause();
   els.pbLoading.hidden = false;
   const loadingText = $("#pbLoadingText");
-  if (loadingText) loadingText.textContent = "0%";
+  const loadingFill = $("#pbLoadingFill");
+  if (loadingText) loadingText.textContent = "Загрузка трека… 0%";
+  if (loadingFill) loadingFill.style.width = "0%";
   toast("Загрузка трека…", "info");
+  // Быстрая анимация прогресса (0→90) за ~1.5 сек, финальные 100% — при canplay
+  if (state.loadingTimer) clearInterval(state.loadingTimer);
+  let pct = 0;
+  state.loadingTimer = setInterval(() => {
+    if (pct >= 90) {
+      clearInterval(state.loadingTimer);
+      state.loadingTimer = null;
+      return;
+    }
+    pct = Math.min(90, pct + Math.random() * 8 + 4);
+    if (loadingText) loadingText.textContent = `Загрузка трека… ${Math.round(pct)}%`;
+    if (loadingFill) loadingFill.style.width = `${pct}%`;
+  }, 120);
   audio.src = track.streamUrl;
   audio.load();
   audio.volume = state.settings.muted ? 0 : state.settings.volume;
@@ -2312,17 +2328,43 @@ function initAudioEvents() {
   });
 
   audio.addEventListener("playing", () => {
-    els.pbLoading.hidden = true;
+    if (state.loadingTimer) {
+      clearInterval(state.loadingTimer);
+      state.loadingTimer = null;
+    }
+    const loadingText = $("#pbLoadingText");
+    const loadingFill = $("#pbLoadingFill");
+    if (loadingText) loadingText.textContent = "Загрузка трека… 100%";
+    if (loadingFill) loadingFill.style.width = "100%";
+    setTimeout(() => {
+      els.pbLoading.hidden = true;
+      if (loadingFill) loadingFill.style.width = "0%";
+    }, 300);
   });
 
   audio.addEventListener("canplay", () => {
-    els.pbLoading.hidden = true;
+    if (state.loadingTimer) {
+      clearInterval(state.loadingTimer);
+      state.loadingTimer = null;
+    }
+    const loadingText = $("#pbLoadingText");
+    const loadingFill = $("#pbLoadingFill");
+    if (loadingText) loadingText.textContent = "Загрузка трека… 100%";
+    if (loadingFill) loadingFill.style.width = "100%";
+    setTimeout(() => {
+      els.pbLoading.hidden = true;
+      if (loadingFill) loadingFill.style.width = "0%";
+    }, 300);
   });
 
   audio.addEventListener("ended", onEnded);
 
   audio.addEventListener("error", () => {
     const failed = currentTrack();
+    if (state.loadingTimer) {
+      clearInterval(state.loadingTimer);
+      state.loadingTimer = null;
+    }
     els.pbLoading.hidden = true;
     state.playing = false;
     updatePlayButtons();
