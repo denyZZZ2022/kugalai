@@ -31,7 +31,7 @@ const BACKEND_BASE = (() => {
   } catch {
     /* no-op */
   }
-  return "https://hydrogen-fibre-bigger-proved.trycloudflare.com/";
+  return "https://hydrogen-fibre-bigger-proved.trycloudflare.com";
 })();
 
 const CORS_PROXIES = [

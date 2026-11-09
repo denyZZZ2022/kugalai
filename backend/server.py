@@ -12,6 +12,7 @@ Run:
 """
 import os
 import re
+import subprocess
 import threading
 import time
 
@@ -531,27 +532,35 @@ def api_stream(video_id):
     except Exception as exc:
         return jsonify({"error": str(exc)}), 502
 
-    range_header = request.headers.get("Range")
-    headers = {"User-Agent": "Mozilla/5.0"}
-    if range_header:
-        headers["Range"] = range_header
+    # Транскодируем в аудио-only (m4a) через ffmpeg, чтобы <audio> корректно играл.
+    cmd = [
+        "ffmpeg", "-hide_banner", "-loglevel", "error",
+        "-i", audio_url,
+        "-vn", "-acodec", "aac", "-b:a", "128k",
+        "-f", "mp4", "-movflags", "frag_keyframe+empty_moov+default_base_moof",
+        "pipe:1",
+    ]
     try:
-        upstream = requests.get(audio_url, headers=headers, stream=True, timeout=60)
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     except Exception as exc:
         return jsonify({"error": str(exc)}), 502
 
     def generate():
-        for chunk in upstream.iter_content(chunk_size=65536):
-            if chunk:
+        try:
+            while True:
+                chunk = proc.stdout.read(65536)
+                if not chunk:
+                    break
                 yield chunk
+        finally:
+            try:
+                proc.stdout.close()
+            except Exception:
+                pass
+            proc.wait()
 
-    resp = Response(stream_with_context(generate()), status=upstream.status_code)
-    for h in ("Content-Type", "Content-Length", "Content-Range", "Accept-Ranges"):
-        if h in upstream.headers:
-            resp.headers[h] = upstream.headers[h]
-    if "Content-Type" not in resp.headers:
-        resp.headers["Content-Type"] = "audio/webm"
-    resp.headers["Accept-Ranges"] = upstream.headers.get("Accept-Ranges", "bytes")
+    resp = Response(stream_with_context(generate()), status=200, mimetype="audio/mp4")
+    resp.headers["Accept-Ranges"] = "none"
     cors(resp)
     return resp
 
