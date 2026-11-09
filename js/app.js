@@ -656,8 +656,6 @@ function paintHome(data) {
   const recent = store.getRecent().length;
   const [g1, g2] = gradientFor(featured.key);
 
-  const playlists = (data.playlists || []).slice(0, 6);
-
   els.view.innerHTML = `
     <section class="home-greeting">
       <div>
@@ -700,22 +698,6 @@ function paintHome(data) {
       </div>
       <div class="hf-art">${art(featured)}</div>
     </section>
-
-    <div class="row-head">
-      <div><h2>В тренде сейчас</h2><p>Что слушают прямо сейчас</p></div>
-      <div class="row-link">
-        <button class="text-btn" type="button" data-action="random">${icon("sparkles")} Удиви меня</button>
-      </div>
-    </div>
-    <div class="card-grid">${tracks.slice(0, 12).map((track) => trackCard(track, listId)).join("")}</div>
-
-
-    ${
-      playlists.length
-        ? `<div class="row-head"><div><h2>Плейлисты Audius</h2><p>Готовые подборки под настроение</p></div></div>
-          <div class="card-grid">${playlists.map(playlistCard).join("")}</div>`
-        : ""
-    }
   `;
 
   syncRowStates();
@@ -1611,6 +1593,8 @@ function loadCurrent(autoplay = true) {
   state.current = track;
   state.playing = autoplay;
   audio.pause();
+  els.pbLoading.hidden = false;
+  toast("Загрузка трека…", "info");
   audio.src = track.streamUrl;
   audio.load();
   audio.volume = state.settings.muted ? 0 : state.settings.volume;
