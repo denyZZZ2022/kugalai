@@ -449,6 +449,21 @@ def resolve_audio_url(video_id):
     has_cookies = os.path.exists(cookies_path)
 
     last_error = None
+    # 1) Сначала пробуем audio-only (webm/opus) без принудительного клиента — быстро, без транскодирования.
+    try:
+        opts = {"quiet": True, "no_warnings": True, "format": "bestaudio", "skip_download": True}
+        if has_cookies:
+            opts["cookiefile"] = cookies_path
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+        audio_url = info.get("url")
+        if audio_url:
+            cache_set(cache_key, audio_url, ttl=600)
+            return audio_url
+    except Exception as exc:
+        last_error = exc
+
+    # 2) Fallback: android-клиент (обходит проверку бота на дата-центрах).
     for client in ("android", "ios", "mweb", "web"):
         try:
             opts = {
@@ -567,7 +582,8 @@ def api_stream(video_id):
         pass
 
     from flask import send_file
-    resp = send_file(cache_file, mimetype="audio/mp4", conditional=True)
+    resp = send_file(cache_file, mimetype="audio/mp4", conditional=True, max_age=3600)
+    resp.headers["Cache-Control"] = "public, max-age=3600"
     cors(resp)
     return resp
 
