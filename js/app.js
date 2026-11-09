@@ -322,10 +322,6 @@ function initTelegram() {
   const user = tg.initDataUnsafe?.user;
   if (user) {
     state.user = user;
-    const name = [user.first_name, user.last_name].filter(Boolean).join(" ").trim();
-    els.userAvatar.textContent = (user.first_name || "K").slice(0, 1).toUpperCase();
-    els.userName.textContent = name || user.username || "Слушатель";
-    els.userChip.title = name || "Слушатель";
   }
 }
 
@@ -658,16 +654,14 @@ function paintHome(data) {
   registerList(listId, tracks);
   const liked = store.getLikes().length;
   const recent = store.getRecent().length;
-  const name = state.user?.first_name ? `, ${esc(state.user.first_name)}` : "";
   const [g1, g2] = gradientFor(featured.key);
 
-  const artists = (data.artists || []).slice(0, 10);
   const playlists = (data.playlists || []).slice(0, 6);
 
   els.view.innerHTML = `
     <section class="home-greeting">
       <div>
-        <h1>${greeting()}${name}</h1>
+        <h1>${greeting()}</h1>
         <p>Что послушаем сегодня? В каталоге ${formatCompact(tracks.length * 25)}+ треков.</p>
       </div>
       <span class="stat-chip">${icon("globe")} Музыка</span>
