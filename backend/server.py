@@ -532,37 +532,10 @@ def api_stream(video_id):
     except Exception as exc:
         return jsonify({"error": str(exc)}), 502
 
-    # Транскодируем в аудио-only (m4a) через ffmpeg, чтобы <audio> корректно играл.
-    cmd = [
-        "ffmpeg", "-hide_banner", "-loglevel", "error",
-        "-i", audio_url,
-        "-vn", "-acodec", "aac", "-b:a", "128k",
-        "-f", "mp4", "-movflags", "frag_keyframe+empty_moov+default_base_moof",
-        "pipe:1",
-    ]
-    try:
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    except Exception as exc:
-        return jsonify({"error": str(exc)}), 502
-
-    def generate():
-        try:
-            while True:
-                chunk = proc.stdout.read(65536)
-                if not chunk:
-                    break
-                yield chunk
-        finally:
-            try:
-                proc.stdout.close()
-            except Exception:
-                pass
-            proc.wait()
-
-    resp = Response(stream_with_context(generate()), status=200, mimetype="audio/mp4")
-    resp.headers["Accept-Ranges"] = "none"
-    cors(resp)
-    return resp
+    # Редирект на прямой URL аудио (быстрее, без транскодирования).
+    # googlevideo обычно отдаёт CORS-заголовки для media.
+    from flask import redirect
+    return redirect(audio_url, code=302)
 
 
 if __name__ == "__main__":

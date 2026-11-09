@@ -381,9 +381,10 @@ async function backendAvailable() {
 function mapYouTubeTrack(row) {
   if (!row || !row.id) return null;
   const streamUrl = row.streamUrl || row.stream_url || "";
+  const base = String(BACKEND_BASE || "").replace(/\/+$/, "");
   const absoluteStream = streamUrl.startsWith("http")
     ? streamUrl
-    : `${BACKEND_BASE}${streamUrl.startsWith("/") ? "" : "/"}${streamUrl}`;
+    : `${base}${streamUrl.startsWith("/") ? "" : "/"}${streamUrl}`;
   return {
     key: row.key || `youtube:${row.id}`,
     source: "youtube",
