@@ -21,7 +21,7 @@ import yt_dlp
 from flask import Flask, Response, request, jsonify, stream_with_context, send_from_directory
 from ytmusicapi import YTMusic
 
-PORT = int(os.environ.get("PORT") or os.environ.get("KLUG_PORT") or "8799")
+PORT = int(os.environ.get("SERVER_PORT") or os.environ.get("PORT") or os.environ.get("KLUG_PORT") or "8799")
 HOST = os.environ.get("KLUG_HOST", "0.0.0.0")
 
 app = Flask(__name__)
