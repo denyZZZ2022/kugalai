@@ -109,6 +109,10 @@ const state = {
   tg: null,
   lastVolume: 0.8,
   loadingTimer: null,
+  ytPlayer: null,
+  ytReady: false,
+  ytTimer: null,
+  useYt: false,
 };
 
 const PALETTE = [
@@ -1509,6 +1513,73 @@ function setMediaSession(track) {
   }
 }
 
+function initYouTubePlayer() {
+  if (window.YT && window.YT.Player) {
+    createYtPlayer();
+    return;
+  }
+  window.onYouTubeIframeAPIReady = () => createYtPlayer();
+}
+
+function createYtPlayer() {
+  if (state.ytPlayer) return;
+  try {
+    state.ytPlayer = new window.YT.Player("ytPlayer", {
+      width: "1",
+      height: "1",
+      playerVars: {
+        autoplay: 0,
+        controls: 0,
+        disablekb: 1,
+        fs: 0,
+        modestbranding: 1,
+        rel: 0,
+        iv_load_policy: 3,
+      },
+      events: {
+        onReady: () => {
+          state.ytReady = true;
+        },
+        onStateChange: (event) => {
+          // 0=ended, 1=playing, 2=paused
+          if (event.data === 0) onEnded();
+          if (event.data === 1) {
+            state.playing = true;
+            if (state.loadingTimer) {
+              clearInterval(state.loadingTimer);
+              state.loadingTimer = null;
+            }
+            const loadingText = $("#pbLoadingText");
+            const loadingFill = $("#pbLoadingFill");
+            if (loadingText) loadingText.textContent = "Загрузка трека… 100%";
+            if (loadingFill) loadingFill.style.width = "100%";
+            setTimeout(() => {
+              els.pbLoading.hidden = true;
+              if (loadingFill) loadingFill.style.width = "0%";
+            }, 200);
+            updatePlayButtons();
+            syncRowStates();
+          }
+          if (event.data === 2) {
+            state.playing = false;
+            updatePlayButtons();
+            syncRowStates();
+          }
+        },
+        onError: (event) => {
+          toast("Трек недоступен. Возможно, он удалён из каталога.", "error");
+          els.pbLoading.hidden = true;
+          if (state.queue.length > 1) {
+            setTimeout(() => nextTrack({ auto: true }), 1500);
+          }
+        },
+      },
+    });
+  } catch {
+    /* optional */
+  }
+}
+
 function initMediaSession() {
   if (!("mediaSession" in navigator)) return;
   const handlers = {
@@ -1536,6 +1607,14 @@ function initMediaSession() {
 }
 
 function getDuration() {
+  if (state.useYt && state.ytPlayer) {
+    try {
+      const d = state.ytPlayer.getDuration();
+      if (Number.isFinite(d) && d > 0) return d;
+    } catch {
+      /* no-op */
+    }
+  }
   if (Number.isFinite(audio.duration) && audio.duration > 0) return audio.duration;
   return currentTrack()?.duration || 0;
 }
@@ -1581,10 +1660,23 @@ function playShuffled(listId) {
 }
 
 function loadCurrent(autoplay = true) {
+  // Остановить предыдущий YouTube-плеер.
+  if (state.ytPlayer && state.useYt) {
+    try {
+      state.ytPlayer.stopVideo();
+    } catch {
+      /* no-op */
+    }
+  }
+  if (state.ytTimer) {
+    clearInterval(state.ytTimer);
+    state.ytTimer = null;
+  }
   const track = currentTrack();
   if (!track) {
     state.current = null;
     state.playing = false;
+    state.useYt = false;
     renderPlayerMeta();
     updatePlayButtons();
     renderQueue();
@@ -1594,13 +1686,66 @@ function loadCurrent(autoplay = true) {
   state.current = track;
   state.playing = autoplay;
   audio.pause();
+  state.useYt = track.source === "youtube" && state.ytReady;
+
+  // Для YouTube-треков используем встроенный плеер (обходит блокировки).
+  if (state.useYt && state.ytPlayer) {
+    els.pbLoading.hidden = false;
+    const loadingText = $("#pbLoadingText");
+    const loadingFill = $("#pbLoadingFill");
+    if (loadingText) loadingText.textContent = "Загрузка трека… 0%";
+    if (loadingFill) loadingFill.style.width = "0%";
+    toast("Загрузка трека…", "info");
+    if (state.loadingTimer) clearInterval(state.loadingTimer);
+    let pct = 0;
+    state.loadingTimer = setInterval(() => {
+      if (pct >= 90) {
+        clearInterval(state.loadingTimer);
+        state.loadingTimer = null;
+        return;
+      }
+      pct = Math.min(90, pct + Math.random() * 8 + 4);
+      if (loadingText) loadingText.textContent = `Загрузка трека… ${Math.round(pct)}%`;
+      if (loadingFill) loadingFill.style.width = `${pct}%`;
+    }, 120);
+    try {
+      state.ytPlayer.loadVideoById({ videoId: track.id, startSeconds: 0 });
+      if (!autoplay) state.ytPlayer.pauseVideo();
+    } catch {
+      state.useYt = false;
+    }
+    if (state.ytTimer) clearInterval(state.ytTimer);
+    state.ytTimer = setInterval(() => {
+      if (!state.ytPlayer || !state.useYt) return;
+      try {
+        const cur = state.ytPlayer.getCurrentTime() || 0;
+        const dur = state.ytPlayer.getDuration() || track.duration || 0;
+        if (dur > 0) {
+          state.playing = state.ytPlayer.getPlayerState() === 1;
+          updateProgressYt(cur, dur);
+        }
+      } catch {
+        /* no-op */
+      }
+    }, 250);
+    store.addRecent(track);
+    setMediaSession(track);
+    renderPlayerMeta();
+    renderNowPlaying();
+    renderQueue();
+    updatePlayButtons();
+    syncRowStates();
+    updateLikeButtons();
+    return;
+  }
+
+  // Обычный audio-движок для остальных источников.
   els.pbLoading.hidden = false;
   const loadingText = $("#pbLoadingText");
   const loadingFill = $("#pbLoadingFill");
   if (loadingText) loadingText.textContent = "Загрузка трека… 0%";
   if (loadingFill) loadingFill.style.width = "0%";
   toast("Загрузка трека…", "info");
-  // Быстрая анимация прогресса (0→90) за ~1.5 сек, финальные 100% — при canplay
   if (state.loadingTimer) clearInterval(state.loadingTimer);
   let pct = 0;
   state.loadingTimer = setInterval(() => {
@@ -1656,6 +1801,16 @@ function togglePlay() {
     startRandom();
     return;
   }
+  if (state.useYt && state.ytPlayer) {
+    try {
+      const s = state.ytPlayer.getPlayerState();
+      if (s === 1) state.ytPlayer.pauseVideo();
+      else state.ytPlayer.playVideo();
+    } catch {
+      /* no-op */
+    }
+    return;
+  }
   if (audio.paused) {
     audio.play().catch(() => toast("Нажми ещё раз, чтобы включить звук", "error"));
   } else {
@@ -1706,6 +1861,32 @@ function onEnded() {
   nextTrack({ auto: true });
 }
 
+function updateProgressYt(current, duration) {
+  const total = duration || getDuration();
+  const cur = current || 0;
+  const ratio = total > 0 ? cur / total : 0;
+  if (!state.seeking) {
+    setRange(els.progress, ratio * 1000);
+    setRange(els.npProgress, ratio * 1000);
+  }
+  els.curTime.textContent = formatTime(cur);
+  els.durTime.textContent = formatTime(total);
+  els.npCur.textContent = formatTime(cur);
+  els.npDur.textContent = formatTime(total);
+  if (state.loadingTimer && ratio > 0.05) {
+    clearInterval(state.loadingTimer);
+    state.loadingTimer = null;
+    const loadingText = $("#pbLoadingText");
+    const loadingFill = $("#pbLoadingFill");
+    if (loadingText) loadingText.textContent = "Загрузка трека… 100%";
+    if (loadingFill) loadingFill.style.width = "100%";
+    setTimeout(() => {
+      els.pbLoading.hidden = true;
+      if (loadingFill) loadingFill.style.width = "0%";
+    }, 200);
+  }
+}
+
 function updateProgress() {
   const duration = getDuration();
   const current = Number.isFinite(audio.currentTime) ? audio.currentTime : 0;
@@ -1737,6 +1918,15 @@ function seekTo(input) {
   const duration = getDuration();
   if (!duration) return;
   const ratio = clamp(Number(input.value) / 1000, 0, 1);
+  if (state.useYt && state.ytPlayer) {
+    try {
+      state.ytPlayer.seekTo(ratio * duration, true);
+    } catch {
+      /* no-op */
+    }
+    updateProgressYt(ratio * duration, duration);
+    return;
+  }
   audio.currentTime = ratio * duration;
   updateProgress();
 }
@@ -1747,6 +1937,15 @@ function applyVolume(value, { persist = true } = {}) {
   if (state.settings.muted && volume > 0) state.settings.muted = false;
   audio.volume = state.settings.muted ? 0 : volume;
   audio.muted = state.settings.muted;
+  if (state.useYt && state.ytPlayer) {
+    try {
+      state.ytPlayer.setVolume(Math.round((state.settings.muted ? 0 : volume) * 100));
+      if (state.settings.muted) state.ytPlayer.mute();
+      else state.ytPlayer.unMute();
+    } catch {
+      /* no-op */
+    }
+  }
   if (persist) persistSettings();
   updateVolumeUI();
 }
@@ -1757,6 +1956,17 @@ function toggleMute() {
   if (!state.settings.muted && state.settings.volume === 0) {
     state.settings.volume = 0.6;
     audio.volume = 0.6;
+  }
+  if (state.useYt && state.ytPlayer) {
+    try {
+      if (state.settings.muted) state.ytPlayer.mute();
+      else {
+        state.ytPlayer.unMute();
+        state.ytPlayer.setVolume(Math.round(state.settings.volume * 100));
+      }
+    } catch {
+      /* no-op */
+    }
   }
   persistSettings();
   updateVolumeUI();
@@ -2572,6 +2782,7 @@ function init() {
   if (!location.hash) history.replaceState(null, "", "#/home");
   window.addEventListener("hashchange", handleRoute);
   handleRoute();
+  initYouTubePlayer();
   registerServiceWorker();
 }
 
