@@ -447,6 +447,7 @@ def resolve_audio_url(video_id):
     # Путь к cookies (если загружены на хостинг) — обходит проверку бота.
     cookies_path = os.environ.get("YOUTUBE_COOKIES_FILE") or os.path.join(os.path.dirname(__file__), "cookies.txt")
     has_cookies = os.path.exists(cookies_path)
+    print(f"DEBUG cookies_path={cookies_path} exists={has_cookies}", flush=True)
 
     last_error = None
     # Пробуем разные форматы и клиенты.
