@@ -449,52 +449,43 @@ def resolve_audio_url(video_id):
     has_cookies = os.path.exists(cookies_path)
 
     last_error = None
-    # 1) Сначала пробуем audio-only (webm/opus) без принудительного клиента — быстро, без транскодирования.
-    try:
-        opts = {"quiet": True, "no_warnings": True, "format": "bestaudio", "skip_download": True}
-        if has_cookies:
-            opts["cookiefile"] = cookies_path
-        with yt_dlp.YoutubeDL(opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-        audio_url = info.get("url")
-        if audio_url:
-            cache_set(cache_key, audio_url, ttl=600)
-            return audio_url
-    except Exception as exc:
-        last_error = exc
+    # Пробуем разные форматы и клиенты.
+    format_candidates = ["bestaudio", "bestaudio*", "best", "18", "251", "140", "249"]
+    client_candidates = [None, "android", "ios", "mweb", "web"]
 
-    # 2) Fallback: android-клиент (обходит проверку бота на дата-центрах).
-    for client in ("android", "ios", "mweb", "web"):
-        try:
-            opts = {
-                "quiet": True,
-                "no_warnings": True,
-                "format": "best",
-                "skip_download": True,
-                "extractor_args": {"youtube": {"player_client": [client]}},
-                "http_headers": {
-                    "User-Agent": "com.google.android.youtube/19.09.37 (Linux; U; Android 11) gzip",
-                },
-            }
-            if has_cookies:
-                opts["cookiefile"] = cookies_path
-            with yt_dlp.YoutubeDL(opts) as ydl:
-                info = ydl.extract_info(url, download=False)
-            audio_url = info.get("url")
-            if not audio_url:
-                formats = info.get("formats") or []
-                audio_formats = [f for f in formats if f.get("acodec") and f.get("acodec") != "none"]
-                if audio_formats:
-                    audio_formats.sort(key=lambda f: (f.get("abr") or 0, f.get("filesize") or 0), reverse=True)
-                    audio_url = audio_formats[0].get("url")
-                elif formats:
-                    audio_url = formats[-1].get("url")
-            if audio_url:
-                cache_set(cache_key, audio_url, ttl=600)
-                return audio_url
-        except Exception as exc:
-            last_error = exc
-            continue
+    for fmt in format_candidates:
+        for client in client_candidates:
+            try:
+                opts = {
+                    "quiet": True,
+                    "no_warnings": True,
+                    "format": fmt,
+                    "skip_download": True,
+                }
+                if client:
+                    opts["extractor_args"] = {"youtube": {"player_client": [client]}}
+                    opts["http_headers"] = {
+                        "User-Agent": "com.google.android.youtube/19.09.37 (Linux; U; Android 11) gzip",
+                    }
+                if has_cookies:
+                    opts["cookiefile"] = cookies_path
+                with yt_dlp.YoutubeDL(opts) as ydl:
+                    info = ydl.extract_info(url, download=False)
+                audio_url = info.get("url")
+                if not audio_url:
+                    formats = info.get("formats") or []
+                    audio_formats = [f for f in formats if f.get("acodec") and f.get("acodec") != "none"]
+                    if audio_formats:
+                        audio_formats.sort(key=lambda f: (f.get("abr") or 0, f.get("filesize") or 0), reverse=True)
+                        audio_url = audio_formats[0].get("url")
+                    elif formats:
+                        audio_url = formats[-1].get("url")
+                if audio_url:
+                    cache_set(cache_key, audio_url, ttl=600)
+                    return audio_url
+            except Exception as exc:
+                last_error = exc
+                continue
     raise RuntimeError(f"Аудио-поток не найден: {last_error}")
 
 
